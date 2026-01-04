@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Birthday Puzzle — 3×3</title>
+<style>
+  :root{
+    --bg: linear-gradient(180deg,#fff6fb,#fff0f8);
+    --card:#fff;
+    --accent:#ff4fa6;
+    --muted:#666;
+    --tile-radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow: hidden; font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
+  body{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y: auto;
+  -webkit-overflow-scrolling: touch;}
+
+  .card{
+  width:100%;
+  max-width:420px;
+  max-height: calc(100vh - 40px); /* 🔑 IMPORTANT */
+  overflow-y: auto;               /* 🔑 IMPORTANT */
+  background:var(--card);
+  border-radius:18px;
+  box-shadow: 0 12px 40px rgba(12,10,20,0.08);
+  padding:18px;
+  text-align:center;
+
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+  .title{
+    font-weight:700;
+    font-size:20px;
+    margin:6px 0 12px;
+    color:#2b2b2b;
+  }
+  .subtitle{color:var(--muted);font-size:13px;margin-bottom:14px}
+
+  /* polaroid frame */
+  .polaroid{
+    width:100%;
+    max-width:340px;
+    margin:0 auto 16px;
+    background:linear-gradient(180deg,#fff,#fff);
+    border-radius:16px;
+    padding:18px 18px 26px;
+    box-shadow:0 18px 40px rgba(0,0,0,0.06);
+    position:relative;
+  }
+
+  /* board (square) */
+  .board{
+    width:100%;
+    max-width:300px;
+    aspect-ratio:1/1;
+    margin:0 auto;
+    position:relative;
+    border-radius:12px;
+    background: #f6f5f8;
+    display:grid;
+    grid-template-columns: repeat(3,1fr);
+    grid-template-rows: repeat(3,1fr);
+    gap:3px;
+    padding:8px;
+  }
+
+  .tile{
+  position:relative;
+  border-radius:var(--tile-radius);
+  overflow:hidden;
+  cursor:grab;
+  user-select:none;
+  -webkit-user-drag:none;
+
+  background-size: calc(100% * 3) calc(100% * 3);
+
+  box-shadow:
+    0 6px 18px rgba(23,14,35,0.06),
+    0 3px 6px rgba(0,0,0,0.04);
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  touch-action: manipulation;
+
+  transition:
+    transform 160ms cubic-bezier(.2,.9,.3,1),
+    box-shadow 160ms ease,
+    opacity 600ms ease,
+    filter 600ms ease;
+}
+
+
+  
+
+  .tile:active{
+    transform: translateY(4px) scale(0.995);
+    box-shadow: 0 4px 10px rgba(23,14,35,0.08);
+    cursor:grabbing;
+  }
+
+  .tile.empty{
+    background:transparent;
+    box-shadow:none;
+    cursor:default;
+  }
+
+  .tile.fade-out {
+  opacity: 0;
+  filter: blur(6px);
+}
+
+.tile.fade-in {
+  opacity: 1;
+  filter: blur(0);
+}
+.tile.blur-hide {
+  opacity: 0;
+  filter: blur(14px) brightness(0.95);
+  transform: scale(0.96);
+}
+
+.tile.blur-show {
+  opacity: 1;
+  filter: blur(0) brightness(1);
+  transform: scale(1);
+}
+
+
+  .preview-wrapper{
+  margin-top: 12px;
+  text-align:center;
+}
+
+.preview-img{
+  width:90px;
+  height:90px;
+  border-radius:10px;
+  object-fit:cover;
+  box-shadow:0 8px 20px rgba(0,0,0,0.08);
+  border:2px solid #fff;
+}
+
+.preview-label{
+  font-size:12px;
+  color:#777;
+  margin-top:4px;
+}
+
+
+  /* polaroid caption area */
+  .caption{
+    margin-top:12px;
+    font-size:14px;
+    color:var(--muted);
+  }
+
+  /* finished overlay */
+  .finish {
+    margin-top:14px;
+    display:none;
+    flex-direction:column;
+    gap:10px;
+    align-items:center;
+  }
+  .wish{
+    font-family:serif;
+    color:#2b2b2b;
+    font-size:15px;
+  }
+  .thank{
+    background: linear-gradient(90deg,#ffd2e6,#ff8fb6);
+    border:none;
+    padding:10px 16px;
+    border-radius:12px;
+    color:#fff;
+    font-weight:700;
+    cursor:pointer;
+    box-shadow: 0 10px 24px rgba(255,79,166,0.14);
+  }
+
+  /* control row */
+  .controls{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .btn{
+    background:var(--accent);
+    color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer;
+    box-shadow: 0 10px 22px rgba(255,79,166,0.12);
+  }
+  .btn.secondary{background:#fff;color:var(--accent);border:1px solid #ffe6f0}
+
+  /* small helper text */
+  .hint{font-size:13px;color:var(--muted);margin-top:10px}
+
+  /* confetti canvas */
+  canvas.confetti-canvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:999;display:none}
+
+  /* responsive */
+  @media (max-width:420px){
+    .card{padding:14px}
+    .polaroid{padding:14px}
+    .title{font-size:18px}
+  }
+</style>
+</head>
+<body>
+
+  <!-- <form id="thankyouForm" action="https://formspree.io/f/movgndzp" method="POST" style="display:none;">
+  <input type="hidden" name="message" value="She clicked the Thank You button ❤️">
+</form> -->
+<form id="thankyouForm" action="https://formspree.io/f/movgndzp" method="POST" style="display:none;">
+  <input type="hidden" name="event" value="Thank You button clicked ❤️">
+  <input type="hidden" name="custom_message" id="formMessage">
+</form>
+
+
+
+<div class="card" id="puzzleCard" role="main" aria-label="Birthday puzzle card">
+
+  <div class="title">Slide the tiles to reveal the surprise 🎁</div>
+  <div class="subtitle">Tap a tile next to the empty square to move it.</div>
+
+  <div class="polaroid" aria-hidden="false">
+    <div class="board" id="board" role="grid" aria-label="3 by 3 sliding puzzle"></div>
+    <div class="preview-wrapper">
+  <img id="previewImg" class="preview-img" alt="Preview" />
+  <div class="preview-label">Preview ✨</div>
+</div>
+
+    <div class="caption">A small surprise — enjoy! 🎂</div>
+  </div>
+
+  <div class="controls">
+    <!-- <button id="shuffleBtn" class="btn secondary" title="Shuffle again">Shuffle</button>
+    <button id="musicToggle" class="btn" title="Toggle celebratory music">Music ♪</button> -->
+  </div>
+
+  <div class="finish" id="finishArea" aria-live="polite">
+    <div class="wish" id="wishText"><i>
+Oye, I tried to make your birthday special last year too,<br>
+but I think you didn’t get a chance to open<br>
+the surprise site I had prepared for you.<br><br>
+
+This time, this will be the last such surprise,<br>
+so don’t worry… no secrets after this 😊<br><br>
+
+I see you in the evening with your mom,<br>
+and for a moment, everything feels calm.<br>
+You look beautiful — not just by appearance,<br>
+but by the way you smile,<br>
+the way you play with kids near the society gate,<br>
+and the warmth you show to elders.<br>
+Also… the specs 🤓 really suit you.<br><br>
+
+Today, I’m sharing my thoughts<br>
+and a little fondness towards you —<br>
+not with any expectations,<br>
+not to disturb your peace,<br>
+but simply because they are honest<br>
+and came straight from the heart.<br><br>
+
+A daughter like you truly reflects<br>
+wonderful parents<br>
+and beautiful values.<br><br>
+
+No pressure,<br>
+no expectations,<br>
+no trouble from next year —<br><br>
+
+just one honest feeling,<br>
+quietly placed here,<br>
+from someone who cares.<br>
+& God Bless You<br><br>
+
+Happy Birthday 🌸
+</i>
+
+
+ 
+ <textarea
+  id="customMessage"
+  placeholder="If you want, you can write a small note here… for the sender 💌"
+  rows="3"
+  style="
+    width:100%;
+    max-width:320px;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid #f2cfe0;
+    font-family:inherit;
+    font-size:14px;
+    resize:none;
+    outline:none;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);
+  "
+></textarea>
+
+    <button class="thank" id="thankBtn">Send😊</button>
+  </div>
+
+  <!-- <div class="hint">Tip: Use a square image. Set `IMAGE_PATH` in the script to use your own photo.</div> -->
+</div>
+
+
+
+<canvas id="confetti" class="confetti-canvas"></canvas>
+
+<!-- audio (optional) - set AUDIO_SRC in the script) -->
+<audio id="bgAudio" loop></audio>
+
+<script>
+  document.getElementById("previewImg").src = "./image1.jpeg";
+
+  document.getElementById("thankBtn").addEventListener("click", () => {
+  const msg = document.getElementById("customMessage").value.trim();
+
+  document.getElementById("formMessage").value =
+    msg || "No custom message — but she clicked Thank You ❤️";
+
+  document.getElementById("thankyouForm").submit();
+
+  // UI feedback
+  const btn = document.getElementById("thankBtn");
+  btn.textContent = "Sent with love 💖";
+  btn.disabled = true;
+
+  document.getElementById("customMessage").disabled = true;
+});
+
+
+
+/* =========================
+   CONFIG - edit these
+   ========================= */
+const IMAGE_PATH = "./image1.jpeg"; // <<--- put your relative image path here (e.g. "./mummy_website/cwe.png")
+const TILE_GAP = 8;   // gap used in CSS grid, kept for calculations if needed
+const NOTIFICATION_URL = ""; // optional: set to your endpoint if you want silent POST on thank click
+const AUDIO_SRC = "./mummywebsite/song.mp3"; // optional: path to mp3 to play on win e.g. "./assets/bday-loop.mp3"
+const FINAL_IMAGE_PATH = "./image1.jpeg"; // image to show AFTER puzzle is solved
+
+/* =========================
+   END CONFIG
+   ========================= */
+
+const board = document.getElementById('board');
+//const shuffleBtn = document.getElementById('shuffleBtn');
+//const musicToggle = document.getElementById('musicToggle');
+const finishArea = document.getElementById('finishArea');
+const thankBtn = document.getElementById('thankBtn');
+const wishText = document.getElementById('wishText');
+const confettiCanvas = document.getElementById('confetti');
+const bgAudio = document.getElementById('bgAudio');
+
+if (AUDIO_SRC) bgAudio.src = AUDIO_SRC;
+
+let size = 3;                // 3x3
+let tiles = [];              // array of tile DOM elements in current board order
+let emptyIndex = size*size - 1; // empty tile index position in the array (0..8)
+let solved = false;
+
+// Utility: create board tiles (solved order), use background-position to show image slices
+function createTiles() {
+  board.innerHTML = '';
+  tiles = [];
+  board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+  board.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+
+  for (let i=0;i<size*size;i++){
+    const t = document.createElement('div');
+    t.className = 'tile';
+    // set background; image size should match board pixel size — CSS uses background-size to scale
+    // We'll set background-size to 300% to split into 3x3 visually (because each tile shows 1/3rd in both dims)
+    t.style.backgroundImage = `url("${IMAGE_PATH}")`;
+    t.style.backgroundSize = `${size * 100}% ${size * 100}%`;
+    // background-position formula: for index i -> col = i % size, row = floor(i/size)
+    const col = i % size, row = Math.floor(i/size);
+    t.style.backgroundPosition = `${(col/(size-1))*100}% ${(row/(size-1))*100}%`;
+    t.dataset.correctIndex = i; // target index when solved
+    t.dataset.currentIndex = i; // current index in the board
+    t.setAttribute('role','button');
+    t.setAttribute('aria-label', `tile ${i+1}`);
+    // if last tile, make empty
+    if (i === size*size - 1){
+    t.classList.add('empty');
+    t.style.backgroundImage = "none"; // ✅ IMPORTANT
+    t.style.opacity = '0';
+    t.style.pointerEvents = 'none';
+
+
+      // keep dataset but visually empty
+    } else {
+      t.addEventListener('click', onTileClick);
+      // also support touch: a quick tap will trigger click
+    }
+    tiles.push(t);
+    board.appendChild(t);
+  }
+}
+
+// returns indices of tiles adjacent to emptyIndex
+function neighborsOfEmpty() {
+  const neighbors = [];
+  const er = Math.floor(emptyIndex / size);
+  const ec = emptyIndex % size;
+  // up
+  if (er > 0) neighbors.push((er-1)*size + ec);
+  if (er < size-1) neighbors.push((er+1)*size + ec);
+  if (ec > 0) neighbors.push(er*size + (ec-1));
+  if (ec < size-1) neighbors.push(er*size + (ec+1));
+  return neighbors;
+}
+
+// built-in safe shuffle by making many valid random moves from solved state
+function shuffleByMoves(moves=120) {
+  solved = false;
+  finishArea.style.display = 'none';
+  // Make sure empty is at last index before shuffle
+  emptyIndex = size*size - 1;
+  // place tiles in solved DOM order (already is)
+  // perform random valid moves
+  for (let i=0;i<moves;i++){
+    const n = neighborsOfEmpty();
+    const pick = n[Math.floor(Math.random()*n.length)];
+    swapIndices(pick, emptyIndex, false);
+    emptyIndex = pick;
+  }
+  // refresh DOM order to match tiles array positions
+  renderTiles();
+}
+
+// swap two positional indices (i moves to j, j moves to i)
+function swapIndices(i, j, animate=true){
+  // swap dataset currentIndex for tiles at those positions in the current DOM layout
+  // Find DOM elements currently occupying positions i and j:
+  const elI = tiles.find(t => Number(t.dataset.currentIndex) === i);
+  const elJ = tiles.find(t => Number(t.dataset.currentIndex) === j);
+  if (!elI || !elJ) return;
+  // swap their currentIndex values
+  const tmp = elI.dataset.currentIndex;
+  elI.dataset.currentIndex = elJ.dataset.currentIndex;
+  elJ.dataset.currentIndex = tmp;
+  // update empty index if needed
+  if (elI.classList.contains('empty')) emptyIndex = Number(elI.dataset.currentIndex);
+  if (elJ.classList.contains('empty')) emptyIndex = Number(elJ.dataset.currentIndex);
+}
+
+// reposition tiles in DOM according to their dataset.currentIndex
+function renderTiles(){
+  // create an array of length N to place elements
+  const positionArray = new Array(size*size);
+  tiles.forEach(t => {
+    const pos = Number(t.dataset.currentIndex);
+    positionArray[pos] = t;
+  });
+  // clear board and append in order
+  board.innerHTML = '';
+  positionArray.forEach(t => board.appendChild(t));
+}
+
+// click handler for a tile element
+function onTileClick(e){
+  if (solved) return;
+  const tile = e.currentTarget;
+  const pos = Number(tile.dataset.currentIndex);
+  const er = Math.floor(emptyIndex / size);
+  const ec = emptyIndex % size;
+  const r = Math.floor(pos / size);
+  const c = pos % size;
+  const dist = Math.abs(r - er) + Math.abs(c - ec);
+  if (dist === 1){
+    // move tile into empty: swap pos and emptyIndex
+    const emptyEl = tiles.find(t => t.classList.contains('empty'));
+    // animate a little translate effect for nicer feel
+    tile.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(4px)' }, { transform: 'translateY(0)'}], { duration: 160 });
+    swapIndices(pos, emptyIndex, true);
+    renderTiles();
+    // update emptyIndex to the new empty position
+    emptyIndex = pos;
+    // test solved
+    checkSolved();
+  } else {
+    // small wiggle feedback if not movable
+    tile.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(0)' }], { duration: 180 });
+  }
+}
+
+// check solved by comparing each tile's currentIndex to correctIndex; empty at last pos
+function checkSolved(){
+  const allOk = tiles.every(t => Number(t.dataset.currentIndex) === Number(t.dataset.correctIndex));
+  if (allOk){
+    solved = true;
+    onComplete();
+    setTimeout(showBirthdayMessage, 2000); // 2 sec delay
+  }
+}
+
+// on solved: show confetti, play audio, reveal message & thank button
+function onComplete(){
+  solved = true;
+  finishArea.style.display = 'flex';
+  const card = document.getElementById("puzzleCard");
+card.scrollTo({
+  top: 0,
+  behavior: "smooth"
+});
+
+
+
+
+  // 1️⃣ Fade out all NON-empty tiles
+  tiles.forEach(tile => {
+    if (!tile.classList.contains('empty')) {
+      tile.classList.add('fade-out');
+    }
+  });
+
+  // 2️⃣ After fade-out, swap image
+  setTimeout(() => {
+    tiles.forEach(tile => {
+      if (tile.classList.contains('empty')) {
+        tile.style.backgroundImage = "none"; // ✅ double safety
+        return;
+      }
+
+      tile.style.backgroundImage = `url("${FINAL_IMAGE_PATH}")`;
+
+      const correctIndex = Number(tile.dataset.correctIndex);
+      const col = correctIndex % size;
+      const row = Math.floor(correctIndex / size);
+
+      tile.style.backgroundPosition =
+        `${(col/(size-1))*100}% ${(row/(size-1))*100}%`;
+    });
+
+    // 3️⃣ Fade back in
+    tiles.forEach(tile => {
+      if (!tile.classList.contains('empty')) {
+        tile.classList.remove('fade-out');
+        tile.classList.add('fade-in');
+      }
+    });
+
+    // 4️⃣ Celebration
+    startConfetti();
+    finishArea.style.display = 'flex';
+
+    if (bgAudio.src) {
+      bgAudio.volume = 0.7;
+      bgAudio.play().catch(()=>{});
+    }
+
+  }, 600);
+}
+
+
+// shuffle button
+//shuffleBtn.addEventListener('click', ()=> shuffleByMoves(90));
+
+// thank button click
+thankBtn.addEventListener('click', async ()=>{
+  // local feedback
+  thankBtn.textContent = 'Thank you 💛';
+  thankBtn.disabled = true;
+  // store local flag
+  localStorage.setItem('puzzle_thanked', new Date().toISOString());
+  // optional: POST to your notification endpoint
+  if (NOTIFICATION_URL && NOTIFICATION_URL.trim().length > 0){
+    try {
+      await fetch(NOTIFICATION_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({event:'thank_clicked', time:new Date().toISOString()})
+      });
+    } catch(e){
+      // ignore silently
+    }
+  }
+});
+
+// music toggle
+//musicToggle.addEventListener('click', ()=>{
+  //if (!bgAudio.src) {
+    //alert('No audio file configured. Set AUDIO_SRC in script to enable music.');
+    //return;
+ // }
+  //if (bgAudio.paused) bgAudio.play().catch(()=>{});
+  //else bgAudio.pause();
+//});
+
+/* -------------------
+   Simple confetti (no external libs)
+   ------------------- */
+  
+
+
+let confettiCtx, confettiParticles=[], confettiAnim=false;
+function startConfetti(){
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+  confettiCanvas.style.display = 'block';
+  confettiCtx = confettiCanvas.getContext('2d');
+  confettiParticles = [];
+  const count = Math.min(200, Math.floor(window.innerWidth/6));
+  for (let i=0;i<count;i++){
+    confettiParticles.push(randomConfetti());
+  }
+  confettiAnim = true;
+  requestAnimationFrame(confettiFrame);
+  setTimeout(()=> stopConfetti(), 7000);
+}
+function randomConfetti(){
+  return {
+    x: Math.random()*confettiCanvas.width,
+    y: Math.random()*-confettiCanvas.height,
+    r: 6 + Math.random()*8,
+    dx: -3 + Math.random()*6,
+    dy: 2 + Math.random()*6,
+    color: ['#ff7b93','#ffd2da','#ffb199','#ffe9a8','#b6fff0'][Math.floor(Math.random()*5)],
+    rot: Math.random()*360,
+    rotSpeed: -4 + Math.random()*8
+  };
+}
+function confettiFrame(){
+  if (!confettiAnim) return;
+  confettiCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  confettiParticles.forEach(p=>{
+    p.x += p.dx; p.y += p.dy; p.rot += p.rotSpeed;
+    confettiCtx.save();
+    confettiCtx.translate(p.x,p.y);
+    confettiCtx.rotate(p.rot*Math.PI/180);
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.fillRect(-p.r/2,-p.r/2,p.r,p.r*0.6);
+    confettiCtx.restore();
+  });
+  confettiParticles = confettiParticles.filter(p => p.y < confettiCanvas.height + 40);
+  if (confettiParticles.length < 80) confettiParticles.push(randomConfetti());
+  requestAnimationFrame(confettiFrame);
+}
+function stopConfetti(){
+  confettiAnim = false;
+  confettiCanvas.style.display = 'none';
+}
+
+/* Initialize on load */
+// create the tiles visually
+createTiles();
+// Immediately shuffle with many valid moves so puzzle is jumbled and solvable
+shuffleByMoves(130);
+
+// ensure render is correct after images load (if image loads later)
+window.addEventListener('resize', ()=> renderTiles());
+//const bgAudios = document.getElementById("bgAudios");
+
+// Fallback: ensure play on load
+//window.addEventListener("load", () => {
+ // bgAudios.play().catch(() => {});
+//});
+
+</script>
+<!-- <audio id="bgAudios" src="mummywebsite/song.mp3" autoplay loop></audio> -->
+<audio autoplay>
+  <source src="song.mp3" type="audio/mpeg">
+  
+Your browser does not support the audio element.
+</audio>
+
+</body>
+</html>
